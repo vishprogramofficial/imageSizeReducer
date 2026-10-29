@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10140f">
+<title>ImageDiet — Image Size Lab</title>
+<link rel="stylesheet" href="image-diet.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="ImageDiet home"><span class="brand-mark" aria-hidden="true">↘</span><span>image<em>diet</em></span></a>
+    <nav class="nav" aria-label="Main navigation"><a href="#workspace">Compressor</a><a href="#settings">Settings</a><span class="local-badge"><span class="dot"></span> Private by design</span></nav>
+  </header>
+  <main id="top">
+    <section class="hero">
+      <div><div class="eyebrow">Image Size Lab · v1.0</div><h1>Less bytes.<br><span>More brilliance.</span></h1><p>Compress, convert, and compare your images in one clean workspace. Fine-tune quality, see the savings, and download — without sending your files to a server.</p></div>
+      <div class="hero-note"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 1 1 8 0v3"/><path d="m9 15 2 2 4-4"/></svg><span><strong>Your files stay on your device</strong>Browser-based processing. No upload required.</span></div>
+    </section>
+    <section class="layout" id="workspace" aria-label="Image compression workspace">
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">Your workspace</div><div class="sub">Add images, tune settings, then compress.</div></div><span class="step">01 / Upload</span></div>
+        <div class="workspace">
+          <label class="dropzone" id="dropzone" for="fileInput" tabindex="0" role="button" aria-label="Choose images or drop them here">
+            <span class="upload-icon"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg></span>
+            <strong>Drop your images here</strong><p>or browse files from your device</p><span class="btn btn-primary">Choose images <span aria-hidden="true">↗</span></span>
+            <span class="file-limit">JPG · PNG · WebP · GIF (first frame) · SVG not supported · Max 20 MB per file</span>
+          </label>
+          <input class="visually-hidden" id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/avif" multiple>
+          <div class="queue-head"><strong>Image queue <span id="queueCount" class="queue-count">(0)</span></strong><button id="clearAll" class="btn btn-ghost clear-btn" disabled>Clear all</button></div>
+          <div id="fileList" class="file-list" aria-live="polite"><div class="empty-state">Your workspace is empty.<br>Choose one or more images to get started.</div></div>
+          <div id="results" class="results" aria-live="polite">
+            <div class="result-top"><div><div class="result-label">Compression complete</div><div class="result-sub" id="resultSub">Your optimized images are ready.</div></div><div class="result-saving" id="savedPercent">—</div></div>
+            <div class="result-stats"><div class="mini-stat"><span>Original total</span><strong id="originalTotal">—</strong></div><div class="mini-stat"><span>Optimized total</span><strong id="optimizedTotal">—</strong></div><div class="mini-stat"><span>Space saved</span><strong id="savedTotal">—</strong></div></div>
+          </div>
+        </div>
+      </div>
+      <aside class="card" id="settings">
+        <div class="card-head"><div><div class="card-title">Compression settings</div><div class="sub">Find your quality / size balance.</div></div><span class="step">02 / Tune</span></div>
+        <div class="controls">
+          <div class="control-group"><div class="control-label"><label for="format">Output format</label></div><select class="select" id="format"><option value="image/webp">WebP · Recommended</option><option value="image/jpeg">JPEG · Photos</option><option value="image/png">PNG · Lossless</option></select><div class="hint" id="formatHint">Great balance of quality and file size for most images.</div></div>
+          <div class="control-group"><div class="control-label"><label for="quality">Image quality</label><span class="control-value" id="qualityValue">82%</span></div><input class="range" type="range" min="10" max="100" value="82" id="quality"><div class="range-ends"><span>Smaller file</span><span>Higher quality</span></div><div class="hint">Quality affects lossy formats such as WebP and JPEG. PNG is lossless; the slider won't change its quality.</div></div>
+          <div class="control-group"><div class="control-label"><label for="maxWidth">Resize long edge</label></div><select class="select" id="maxWidth"><option value="0">Keep original dimensions</option><option value="2560">Up to 2560 px · Large</option><option value="1920">Up to 1920 px · HD</option><option value="1280">Up to 1280 px · Web</option><option value="800">Up to 800 px · Small</option></select><div class="hint">Images are scaled down proportionally only when they exceed the selected limit.</div></div>
+          <div class="control-group"><label class="toggle-line" for="preserveNames"><span>Keep original file names</span><input class="toggle" type="checkbox" id="preserveNames" checked></label></div>
+          <div class="privacy"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg><div><strong>Private by design</strong><span>Compression runs locally in your browser. Files are not uploaded by this preview.</span></div></div>
+          <button id="compressBtn" class="btn btn-primary process-btn" disabled>Compress images <span aria-hidden="true">→</span></button>
+          <div class="progress-wrap" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
+          <div id="processStatus" class="hint process-status" role="status"></div>
+          <button id="downloadAll" class="btn btn-ghost download-all" hidden>Download all optimized files</button>
+        </div>
+      </aside>
+    </section>
+    <footer class="footer"><span>© 2026 ImageDiet · Image Size Lab</span><div class="footer-links"><a href="#workspace">Back to compressor ↑</a><a href="#settings">Settings</a><span>Made for the web ✳</span></div></footer>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="image-diet.js" defer></script>
+</body>
+</html>
