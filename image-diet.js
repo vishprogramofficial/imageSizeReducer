@@ -1,9 +1,9 @@
 
-//dom element
-
+// DOM elements
 const fileInput = document.getElementById('fileInput');
 const dropzone = document.getElementById('dropzone');
 const fileList = document.getElementById('fileList');
+const themeToggle = document.getElementById('themeToggle');
 
 const quality = document.getElementById('quality');
 const qualityValue = document.getElementById('qualityValue');
@@ -29,33 +29,25 @@ const optimizedTotal = document.getElementById('optimizedTotal');
 const savedTotal = document.getElementById('savedTotal');
 const formatHint = document.getElementById('formatHint');
 
-
-//varibales and const.
+// Configuration and state
 const MAX_BYTES = 20 * 1024 * 1024;
 const MAX_FILES = 30;
 
-const settingControls = [
-    format,
-    quality,
-    maxWidth,
-    preserveNames
-];
+const settingControls = [format, quality, maxWidth, preserveNames];
 
 let items = [];
 let nextId = 1;
 let busy = false;
 let toastTimer;
 
-
-//helper fn
-
+// Formatting and cleanup helpers
 function formatBytes(bytes) {
     if (!Number.isFinite(bytes)) {
         return '—';
     }
 
     if (bytes < 1024) {
-        return bytes + ' B';
+        return `${bytes} B`;
     }
 
     const units = ['KB', 'MB', 'GB'];
@@ -75,9 +67,8 @@ function formatBytes(bytes) {
         digits = 1;
     }
 
-    return value.toFixed(digits) + ' ' + units[unitIndex];
+    return `${value.toFixed(digits)} ${units[unitIndex]}`;
 }
-
 
 function escapeHTML(value) {
     const entities = {
@@ -93,7 +84,6 @@ function escapeHTML(value) {
     });
 }
 
-
 function showToast(message) {
     toastElement.textContent = message;
     toastElement.classList.add('show');
@@ -105,13 +95,11 @@ function showToast(message) {
     }, 2800);
 }
 
-
 function revokeObjectURL(url) {
     if (url) {
         URL.revokeObjectURL(url);
     }
 }
-
 
 function clearOutput(item) {
     revokeObjectURL(item.outputUrl);
@@ -120,12 +108,10 @@ function clearOutput(item) {
     item.outputBlob = null;
 }
 
-
 function cleanItem(item) {
     revokeObjectURL(item.previewUrl);
     clearOutput(item);
 }
-
 
 function resetResults() {
     results.classList.remove('show');
@@ -136,9 +122,7 @@ function resetResults() {
     progressBar.style.width = '0%';
 }
 
-
-//file handling
-
+// File handling
 function isDuplicate(file) {
     return items.some(function (item) {
         return (
@@ -148,7 +132,6 @@ function isDuplicate(file) {
         );
     });
 }
-
 
 function readImageDimensions(item) {
     const image = new Image();
@@ -170,7 +153,6 @@ function readImageDimensions(item) {
     image.src = item.previewUrl;
 }
 
-
 function addFiles(fileCollection) {
     if (busy) {
         fileInput.value = '';
@@ -186,9 +168,7 @@ function addFiles(fileCollection) {
 
     let addedCount = 0;
 
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-
+    for (const file of files) {
         if (items.length >= MAX_FILES) {
             showToast('Maximum ' + MAX_FILES + ' images per batch.');
             break;
@@ -215,7 +195,7 @@ function addFiles(fileCollection) {
 
         const item = {
             id: nextId,
-            file: file,
+            file,
             previewUrl: URL.createObjectURL(file),
             outputUrl: null,
             outputBlob: null,
@@ -238,26 +218,19 @@ function addFiles(fileCollection) {
         render();
 
         showToast(
-            addedCount + ' image' +
-            (addedCount === 1 ? '' : 's') +
-            ' added to queue.'
+            `${addedCount} image${addedCount === 1 ? '' : 's'} added to queue.`
         );
     }
 
     fileInput.value = '';
 }
 
-
 function getOutputName(item) {
     const fileName = item.file.name;
     const dotIndex = fileName.lastIndexOf('.');
 
-    let nameWithoutExtension = fileName;
-
-    if (dotIndex > 0) {
-        nameWithoutExtension = fileName.substring(0, dotIndex);
-    }
-
+    const nameWithoutExtension =
+        dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
     let extension = 'webp';
 
     if (format.value === 'image/jpeg') {
@@ -266,132 +239,82 @@ function getOutputName(item) {
         extension = 'png';
     }
 
-    let suffix = '';
+    const suffix = preserveNames.checked ? '' : '-optimized';
 
-    if (!preserveNames.checked) {
-        suffix = '-optimized';
-    }
-
-    return nameWithoutExtension + suffix + '.' + extension;
+    return `${nameWithoutExtension}${suffix}.${extension}`;
 }
 
-
-/* =========================
-   5. UI RENDERING
-========================= */
-
+// UI rendering
 function renderItem(item) {
-    let sizeReduction = null;
+    const sizeReduction = item.outputBlob && item.file.size > 0
+        ? Math.round((1 - item.outputBlob.size / item.file.size) * 100)
+        : null;
+    const fileName = escapeHTML(item.file.name);
+    let reductionText = '';
 
-    if (item.outputBlob && item.file.size > 0) {
-        sizeReduction = Math.round(
-            (1 - item.outputBlob.size / item.file.size) * 100
-        );
+    if (sizeReduction !== null) {
+        reductionText = sizeReduction >= 0
+            ? ` · ${sizeReduction}% smaller`
+            : ` · ${Math.abs(sizeReduction)}% larger`;
     }
 
-    let statusHTML = '';
+    const statusHTML = item.error
+        ? `<div class="file-status error">${escapeHTML(item.error)}</div>`
+        : `<div class="file-status">${escapeHTML(item.status)}${reductionText}</div>`;
+    const actionHTML = item.outputUrl
+        ? `<a
+            class="mini-download"
+            href="${item.outputUrl}"
+            download="${escapeHTML(getOutputName(item))}"
+            aria-label="Download ${fileName}"
+        >Download ↓</a>`
+        : `<button
+            class="icon-btn remove"
+            data-id="${item.id}"
+            aria-label="Remove ${fileName}"
+            title="Remove image"
+            ${busy ? 'disabled' : ''}
+        >
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+            >
+                <path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 10v6m4-6v6"/>
+            </svg>
+        </button>`;
+    const dimensions = item.width && item.height
+        ? `${item.width} × ${item.height}`
+        : 'Reading dimensions…';
+    const outputSizeHTML = item.outputBlob
+        ? `<div class="file-meta">
+            <span>${formatBytes(item.outputBlob.size)} output</span>
+        </div>`
+        : '';
 
-    if (item.error) {
-        statusHTML =
-            '<div class="file-status error">' +
-            escapeHTML(item.error) +
-            '</div>';
-    } else {
-        statusHTML =
-            '<div class="file-status">' +
-            escapeHTML(item.status);
-
-        if (sizeReduction !== null) {
-            if (sizeReduction >= 0) {
-                statusHTML += ' · ' + sizeReduction + '% smaller';
-            } else {
-                statusHTML += ' · ' + Math.abs(sizeReduction) + '% larger';
-            }
-        }
-
-        statusHTML += '</div>';
-    }
-
-    let actionHTML = '';
-
-    if (item.outputUrl) {
-        actionHTML =
-            '<a class="mini-download" href="' +
-            item.outputUrl +
-            '" download="' +
-            escapeHTML(getOutputName(item)) +
-            '" aria-label="Download ' +
-            escapeHTML(item.file.name) +
-            '">Download ↓</a>';
-    } else {
-        actionHTML =
-            '<button class="icon-btn remove" data-id="' +
-            item.id +
-            '" aria-label="Remove ' +
-            escapeHTML(item.file.name) +
-            '" title="Remove image" ' +
-            (busy ? 'disabled' : '') +
-            '>' +
-            '<svg width="14" height="14" viewBox="0 0 24 24" ' +
-            'fill="none" stroke="currentColor" stroke-width="2">' +
-            '<path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 10v6m4-6v6"/>' +
-            '</svg></button>';
-    }
-
-    let dimensions = 'Reading dimensions…';
-
-    if (item.width && item.height) {
-        dimensions = item.width + ' × ' + item.height;
-    }
-
-    let outputSizeHTML = '';
-
-    if (item.outputBlob) {
-        outputSizeHTML =
-            '<div class="file-meta"><span>' +
-            formatBytes(item.outputBlob.size) +
-            ' output</span></div>';
-    }
-
-    return (
-        '<div class="file-row">' +
-
-            '<img class="thumb" src="' +
-            item.previewUrl +
-            '" alt="Preview of ' +
-            escapeHTML(item.file.name) +
-            '">' +
-
-            '<div class="file-details">' +
-
-                '<div class="file-name" title="' +
-                escapeHTML(item.file.name) +
-                '">' +
-                escapeHTML(item.file.name) +
-                '</div>' +
-
-                '<div class="file-meta">' +
-                    '<span>' + formatBytes(item.file.size) + '</span>' +
-                    '<span>·</span>' +
-                    '<span>' + dimensions + '</span>' +
-                '</div>' +
-
-                statusHTML +
-                outputSizeHTML +
-
-            '</div>' +
-
-            '<div class="file-actions">' +
-                actionHTML +
-            '</div>' +
-
-        '</div>'
-    );
+    return `
+        <div class="file-row">
+            <img class="thumb" src="${item.previewUrl}" alt="Preview of ${fileName}">
+            <div class="file-details">
+                <div class="file-name" title="${fileName}">${fileName}</div>
+                <div class="file-meta">
+                    <span>${formatBytes(item.file.size)}</span>
+                    <span>·</span>
+                    <span>${dimensions}</span>
+                </div>
+                ${statusHTML}
+                ${outputSizeHTML}
+            </div>
+            <div class="file-actions">${actionHTML}</div>
+        </div>
+    `;
 }
-
 
 function render() {
-    queueCount.textContent = '(' + items.length + ')';
+    queueCount.textContent = `(${items.length})`;
 
     clearAll.disabled = busy || items.length === 0;
 
@@ -407,24 +330,17 @@ function render() {
     });
 
     if (items.length === 0) {
-        fileList.innerHTML =
-            '<div class="empty-state">' +
-            'Your workspace is empty.<br>' +
-            'Choose one or more images to get started.' +
-            '</div>';
-
+        fileList.innerHTML = `
+            <div class="empty-state">
+                Your workspace is empty.<br>
+                Choose one or more images to get started.
+            </div>
+        `;
         return;
     }
 
-    let html = '';
-
-    for (let i = 0; i < items.length; i++) {
-        html += renderItem(items[i]);
-    }
-
-    fileList.innerHTML = html;
+    fileList.innerHTML = items.map(renderItem).join('');
 }
-
 
 function removeItem(id) {
     if (busy) {
@@ -449,8 +365,7 @@ function removeItem(id) {
     render();
 }
 
-//image compression
-
+// Image compression
 function canvasToBlob(canvas, type, qualityNumber) {
     return new Promise(function (resolve, reject) {
         try {
@@ -474,7 +389,6 @@ function canvasToBlob(canvas, type, qualityNumber) {
         }
     });
 }
-
 
 async function compressOne(item) {
     const image = new Image();
@@ -570,7 +484,6 @@ async function compressOne(item) {
     item.error = '';
 }
 
-
 async function compressAll() {
     if (busy || items.length === 0) {
         return;
@@ -617,11 +530,7 @@ async function compressAll() {
             Math.round((completedCount / queue.length) * 100) + '%';
 
         processStatus.textContent =
-            'Processed ' +
-            completedCount +
-            ' of ' +
-            queue.length +
-            ' images';
+            `Processed ${completedCount} of ${queue.length} images`;
 
         render();
 
@@ -659,21 +568,15 @@ async function compressAll() {
         results.classList.add('show');
 
         resultSub.textContent =
-            successfulItems.length +
-            ' image' +
-            (successfulItems.length === 1 ? '' : 's') +
-            ' optimized' +
-            (failedCount ? ' · ' + failedCount + ' failed' : '');
+            `${successfulItems.length} image${successfulItems.length === 1 ? '' : 's'} optimized` +
+            (failedCount ? ` · ${failedCount} failed` : '');
 
         if (savedBytes >= 0) {
-            savedPercent.textContent = savedPercentage + '%';
-            savedTotal.textContent = formatBytes(savedBytes) + ' saved';
+            savedPercent.textContent = `${savedPercentage}%`;
+            savedTotal.textContent = `${formatBytes(savedBytes)} saved`;
         } else {
-            savedPercent.textContent =
-                '+' + Math.abs(savedPercentage) + '%';
-
-            savedTotal.textContent =
-                formatBytes(-savedBytes) + ' larger';
+            savedPercent.textContent = `+${Math.abs(savedPercentage)}%`;
+            savedTotal.textContent = `${formatBytes(-savedBytes)} larger`;
         }
 
         originalTotal.textContent = formatBytes(originalBytes);
@@ -702,11 +605,7 @@ async function compressAll() {
     }
 }
 
-
-/* =========================
-   7. DOWNLOAD FUNCTIONS
-========================= */
-
+// Downloads
 function downloadAllFiles() {
     const successfulItems = items.filter(function (item) {
         return item.outputUrl;
@@ -731,14 +630,12 @@ function downloadAllFiles() {
     });
 
     showToast(
-        'Download started for ' +
-        successfulItems.length +
-        ' image(s). Your browser may ask to allow multiple downloads.'
+        `Download started for ${successfulItems.length} image(s). ` +
+        'Your browser may ask to allow multiple downloads.'
     );
 }
 
-//settings
-
+// Settings
 function invalidateOutputs() {
     resetResults();
 
@@ -752,11 +649,9 @@ function invalidateOutputs() {
     render();
 }
 
-
 quality.addEventListener('input', function () {
     qualityValue.textContent = quality.value + '%';
 });
-
 
 format.addEventListener('change', function () {
     const formatHints = {
@@ -775,20 +670,30 @@ format.addEventListener('change', function () {
     invalidateOutputs();
 });
 
-
 [quality, maxWidth, preserveNames].forEach(function (control) {
     control.addEventListener('change', invalidateOutputs);
 });
 
+// Event listeners
+themeToggle.addEventListener('click', function () {
+    const isLight = document.documentElement.dataset.theme !== 'light';
 
-/* =========================
-   9. EVENT LISTENERS
-========================= */
+    if (isLight) {
+        document.documentElement.dataset.theme = 'light';
+    } else {
+        delete document.documentElement.dataset.theme;
+    }
+
+    themeToggle.setAttribute('aria-pressed', String(isLight));
+    themeToggle.setAttribute(
+        'aria-label',
+        isLight ? 'Switch to dark mode' : 'Switch to light mode'
+    );
+});
 
 fileInput.addEventListener('change', function (event) {
     addFiles(event.target.files);
 });
-
 
 dropzone.addEventListener('keydown', function (event) {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -797,14 +702,12 @@ dropzone.addEventListener('keydown', function (event) {
     }
 });
 
-
 ['dragenter', 'dragover'].forEach(function (eventName) {
     dropzone.addEventListener(eventName, function (event) {
         event.preventDefault();
         dropzone.classList.add('dragging');
     });
 });
-
 
 ['dragleave', 'drop'].forEach(function (eventName) {
     dropzone.addEventListener(eventName, function (event) {
@@ -813,11 +716,9 @@ dropzone.addEventListener('keydown', function (event) {
     });
 });
 
-
 dropzone.addEventListener('drop', function (event) {
     addFiles(event.dataTransfer.files);
 });
-
 
 fileList.addEventListener('click', function (event) {
     if (!(event.target instanceof Element)) {
@@ -830,7 +731,6 @@ fileList.addEventListener('click', function (event) {
         removeItem(Number(button.dataset.id));
     }
 });
-
 
 clearAll.addEventListener('click', function () {
     if (busy) {
@@ -845,13 +745,11 @@ clearAll.addEventListener('click', function () {
     render();
 });
 
-
 compressBtn.addEventListener('click', compressAll);
 
 downloadAll.addEventListener('click', downloadAllFiles);
 
-
-//cleanup and start
+// Release preview URLs when the page is closed.
 window.addEventListener('beforeunload', function () {
     items.forEach(cleanItem);
     clearTimeout(toastTimer);
